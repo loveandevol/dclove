@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>코난 아랑만 합시다</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-jp.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --bg-color: #f4f4f4;
+      --card-bg: #ffffff;
+      --text-main: #000000;
+      --border-color: #000000;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family:  "Pretendard JP Variable", 'Noto Sans KR', 'Malgun Gothic', sans-serif; }
+    
+    body { background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; padding: 40px 20px; min-height: 100vh; font-family: "Pretendard JP Variable";}
+    
+    .container { display: flex; gap: 40px; max-width: 1300px; width: 100%; align-items: flex-start; justify-content: center;}
+
+    /* Left: Controls */
+    .controls { flex: 0 1 350px; display: flex; flex-direction: column; gap: 20px; }
+    .control-group { display: flex; flex-direction: column; gap: 8px; }
+    label { font-weight: bold; font-size: 0.95rem; }
+    input[type="text"], textarea { border: 1px solid var(--border-color); padding: 10px; outline: none; font-size: 0.95rem; background: #fff;}
+    input:focus, textarea:focus { border-width: 2px; padding: 9px; }
+
+    /* Modal for Movie Selection */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); }
+    .modal-content { background-color: #fff; margin: 5% auto; padding: 20px; border: 2px solid var(--border-color); width: 90%; max-width: 600px; display: flex; flex-direction: column; gap: 15px; box-shadow: 8px 8px 0px var(--border-color); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; }
+    .close-btn { font-size: 1.5rem; font-weight: bold; cursor: pointer; }
+    
+    .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-height: 50vh; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; background: #fff; }
+    .gallery::-webkit-scrollbar { width: 8px; }
+    .gallery::-webkit-scrollbar-thumb { background: #ccc; }
+    
+    .movie-item { border: 1px solid var(--border-color); cursor: pointer; transition: transform 0.1s; }
+    .movie-item:hover { border-width: 2px; transform: translateY(-2px); }
+    .movie-item img { width: 100%; display: block; aspect-ratio: 2/3; object-fit: cover; }
+    .movie-item .title { font-size: 0.75rem; padding: 6px 4px; text-align: center; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 1px solid #000; }
+
+    /* 💡 갤러리 이미지 오류 시 표시될 텍스트 박스 */
+    .gallery-placeholder { width: 100%; aspect-ratio: 2/3; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #888; border-bottom: 1px solid var(--border-color); }
+
+    .btn { background-color: var(--text-main); color: #fff; border: none; padding: 15px; font-weight: bold; cursor: pointer; font-size: 1rem; transition: background 0.2s; width: 100%; margin-top: 20px; box-shadow: 4px 4px 0px rgba(0,0,0,0.2); }
+    .btn:hover { background-color: #333; transform: translate(1px, 1px); box-shadow: 3px 3px 0px rgba(0,0,0,0.2); }
+
+    /* Right: Preview Card (3:4 Ratio) */
+    .preview-wrapper { flex: 0 1 600px; display: flex; flex-direction: column; align-items: center; }
+    
+    .card {
+      width: 600px; 
+      height: 800px; 
+      background-color: var(--card-bg);
+      border: 2px solid var(--border-color);
+      box-shadow: 10px 10px 0px var(--border-color);
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card-header { display: flex; gap: 20px; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 20px; }
+    
+    /* 💡 외부 이미지를 빼고 순수 CSS 텍스트로 프로필 기본 이미지 대체 */
+    .profile-img { width: 90px; height: 90px; border: 2px solid var(--border-color); background-color: #eee; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #888; font-size: 0.9rem; flex-shrink: 0; }
+    .profile-img::after { content: 'Profile'; }
+    /* 이미지가 설정되면 text를 숨깁니다 */
+    .profile-img.has-image::after { content: none; }
+
+    .user-name { font-size: 1.8rem; font-weight: 900; margin-bottom: 5px; }
+    .user-bio { font-size: 1rem; color: #333; line-height: 1.4; word-break: keep-all; font-weight: 500;}
+
+    .top-list { display: flex; flex-direction: column; gap: 20px; flex: 1; justify-content: space-between; }
+    
+    .movie-slot { display: flex; gap: 20px; border: 1px solid var(--border-color); padding: 15px; height: 180px; align-items: flex-start; overflow: hidden; }
+    
+    .poster-img { width: 100px; height: 148px; object-fit: cover; border: 1px solid var(--border-color); flex-shrink: 0; background: #eee; cursor: pointer; transition: filter 0.2s, transform 0.2s; position: relative; }
+    .poster-img:hover { filter: brightness(0.8); transform: scale(1.02); border-width: 2px; }
+
+    /* 💡 비어있거나 이미지 오류 시 표시될 텍스트 박스 디자인 */
+    .poster-placeholder { 
+      width: 100px; height: 148px; background: #eee; border: 1px dashed #888; flex-shrink: 0; cursor: pointer; 
+      display: flex; align-items: center; justify-content: center; text-align: center; 
+      font-size: 0.75rem; color: #777; transition: filter 0.2s, transform 0.2s; padding: 10px; word-break: keep-all; line-height: 1.4; 
+    }
+    .poster-placeholder:hover { filter: brightness(0.9); transform: scale(1.02); border: 1px solid var(--border-color); }
+    
+    .slot-info { flex: 1; display: flex; flex-direction: column; gap: 8px; height: 100%; }
+    .slot-header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+    .slot-rank { font-weight: 900; font-size: 1.2rem; }
+    .slot-title { font-size: 1.1rem; font-weight: bold; }
+    
+    [contenteditable="true"] { outline: none; cursor: text; border-radius: 4px; transition: background 0.2s; min-width: 30px; }
+    [contenteditable="true"]:hover { background-color: #f0f0f0; }
+    [contenteditable="true"]:focus { background-color: #fffbe6; box-shadow: 0 0 0 2px #ffe58f; }
+
+    .slot-rating { font-size: 1.1rem; font-weight: 900; padding: 2px 6px; }
+    .slot-review { font-size: 0.95rem; color: #222; line-height: 1.6; word-break: break-all; padding: 4px; flex-grow: 1; overflow-y: auto; }
+    .slot-review::-webkit-scrollbar { width: 4px; }
+    .slot-review::-webkit-scrollbar-thumb { background: #ccc; }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="controls">
+      <div class="control-group">
+        <label>닉네임</label>
+        <input type="text" id="nameInput" placeholder="이름 입력" value="에도가와 코난">
+      </div>
+      <div class="control-group">
+        <label>자기소개</label>
+        <textarea id="bioInput" rows="2">몸은 작아졌어도 두뇌는 그대로! 미궁을 모르는 명탐정!</textarea>
+      </div>
+      
+      <div class="control-group">
+        <label>프로필 사진</label>
+        <input type="file" id="profileInput" accept="image/*" style="display:none;">
+        <button class="btn" style="margin-top: 0;" onclick="document.getElementById('profileInput').click()">사진 선택/변경</button>
+      </div>
+
+      <p style="font-size: 0.9rem; color: #555; margin-top: 10px;">
+        💡 <strong>Tip:</strong> 왼쪽 메뉴에서 <b>사진 선택/변경</b> 버튼을 눌러 프로필 사진을 등록하세요. 오른쪽 카드의 <b>포스터 영역</b>을 클릭하여 영화를 선택하고, <b>별점과 감상평</b>은 텍스트를 클릭해 직접 수정하세요!
+      </p>
+    </div>
+
+    <div class="preview-wrapper">
+      <div class="card" id="capture-area">
+        <div class="card-header">
+          <div class="profile-img" id="profilePreview"></div>
+          <div class="user-info">
+            <div class="user-name" id="namePreview">에도가와 코난</div>
+            <div class="user-bio" id="bioPreview">몸은 작아졌어도 두뇌는 그대로! 미궁을 모르는 명탐정!</div>
+          </div>
+        </div>
+        <div class="top-list" id="topListPreview"></div>
+      </div>
+      
+      <button class="btn" onclick="saveImage()">이미지로 저장하기</button>
+    </div>
+  </div>
+
+  <div id="movieModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>영화 선택</h2>
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+      </div>
+      <input type="text" id="searchInput" placeholder="영화 제목 검색..." oninput="renderGallery(this.value)">
+      <div class="gallery" id="movieGallery"></div>
+    </div>
+  </div>
+
+  <script>
+    const movies = [
+      { id: 1, title: "시한장치의 마천루", img: "M000125306.webp" },
+      { id: 2, title: "14번째 표적", img: "M000125308.webp" },
+      { id: 3, title: "세기말의 마술사", img: "M000361877.webp" },
+      { id: 4, title: "눈동자 속의 암살자", img: "M000371574.webp" },
+      { id: 5, title: "천국으로의 카운트다운", img: "M000369266.jpg" },
+      { id: 6, title: "베이커가의 망령", img: "M000153633.webp" },
+      { id: 7, title: "미궁의 십자로", img: "M000368407.webp" },
+      { id: 8, title: "은빛 날개의 마술사", img: "M000360290.webp" },
+      { id: 9, title: "수평선상의 음모", img: "M000125309.webp" },
+      { id: 10, title: "탐정들의 진혼가", img: "M000360289.webp" },
+      { id: 11, title: "감벽의 관", img: "M000165638.webp" },
+      { id: 12, title: "전율의 악보", img: "M000223333.webp" },
+      { id: 13, title: "칠흑의 추적자", img: "M000361846.webp" },
+      { id: 14, title: "천공의 난파선", img: "M000125288.webp" },
+      { id: 15, title: "침묵의 15분", img: "M000369746.webp" },
+      { id: 16, title: "11번째 스트라이커", img: "M000153634.webp" },
+      { id: 17, title: "절해의 탐정", img: "skflakl.webp" },
+      { id: 18, title: "이차원의 저격수", img: "M000360293.webp" },
+      { id: 19, title: "화염의 해바라기", img: "M000125305.webp" },
+      { id: 20, title: "순흑의 악몽", img: "M000368408.webp" },
+      { id: 21, title: "진홍의 연가", img: "M000149652.webp" },
+      { id: 22, title: "제로의 집행인", img: "M000195133.webp" },
+      { id: 23, title: "감청의 권", img: "M000245733.webp" },
+      { id: 24, title: "비색의 탄환", img: "M000364755.webp" },
+      { id: 25, title: "할로윈의 신부", img: "M000370232.webp" },
+      { id: 26, title: "흑철의 어영", img: "M000376657.webp" },
+      { id: 27, title: "100만 달러의 펜타그램", img: "M000377909.webp" },
+      { id: 28, title: "척안의 잔상", img: "M000379299.webp" },
+      { id: 29, title: "하이웨이의 타천사", img: "hwts.webp" }
+    ];
+
+    let selectedMovies = [null, null, null];
+    let activeSlotIndex = null; 
+
+    const topListPreview = document.getElementById('topListPreview');
+    const modal = document.getElementById('movieModal');
+    const galleryEl = document.getElementById('movieGallery');
+
+    function openModal(slotIndex) {
+      activeSlotIndex = slotIndex;
+      modal.style.display = 'block';
+      document.getElementById('searchInput').value = '';
+      renderGallery();
+    }
+
+    function closeModal() {
+      modal.style.display = 'none';
+      activeSlotIndex = null;
+    }
+
+    function renderGallery(filterText = "") {
+      galleryEl.innerHTML = "";
+      const filtered = movies.filter(m => m.title.includes(filterText));
+      filtered.forEach(movie => {
+        const div = document.createElement('div');
+        div.className = 'movie-item';
+        
+        let mediaHTML = '';
+        if (movie.img && movie.img.trim() !== "") {
+          mediaHTML = `<img src="./images/${movie.img}" alt="${movie.title}" onerror="this.onerror=null; this.outerHTML='<div class=\\'gallery-placeholder\\'>이미지 없음</div>'">`;
+        } else {
+          mediaHTML = `<div class="gallery-placeholder">이미지 없음</div>`;
+        }
+        
+        div.innerHTML = `${mediaHTML}<div class="title">${movie.title}</div>`;
+        
+        div.onclick = () => {
+          const isDuplicate = selectedMovies.some((m, idx) => m && m.id === movie.id && idx !== activeSlotIndex);
+          if (isDuplicate) {
+            alert("이미 다른 순위에 선택된 극장판입니다.");
+            return;
+          }
+          selectedMovies[activeSlotIndex] = { ...movie, rating: "5.0", review: "여기를 클릭하여 감상평을 작성해주세요." };
+          closeModal();
+          renderPreview();
+        };
+        galleryEl.appendChild(div);
+      });
+    }
+
+    function renderPreview() {
+      topListPreview.innerHTML = "";
+      for (let i = 0; i < 3; i++) {
+        const movie = selectedMovies[i];
+        
+        let posterHTML = '';
+        if (movie && movie.img && movie.img.trim() !== "") {
+          posterHTML = `<img src="./images/${movie.img.trim()}" class="poster-img" title="클릭하여 영화 변경" onclick="openModal(${i})" onerror="this.onerror=null; this.outerHTML='<div class=\\'poster-placeholder\\' onclick=\\'openModal(${i})\\'>이미지<br>오류</div>'">`;
+        } else {
+          posterHTML = `<div class="poster-placeholder" onclick="openModal(${i})" title="클릭하여 영화 선택/변경">클릭하여<br>영화 선택/변경</div>`;
+        }
+        
+        const title = movie ? movie.title : '영화 포스터를 클릭해주세요';
+        const ratingText = movie ? movie.rating : '0.0';
+        const reviewText = movie ? movie.review : '영화를 먼저 선택해주세요.';
+        const isEditable = movie ? "true" : "false";
+
+        topListPreview.innerHTML += `
+          <div class="movie-slot">
+            ${posterHTML}
+            <div class="slot-info">
+              <div class="slot-header">
+                <span class="slot-rank">TOP ${i + 1}. <span class="slot-title">${title}</span></span>
+                <span class="slot-rating" contenteditable="${isEditable}" onblur="updateText(${i}, 'rating', this.innerText)">★ ${ratingText}</span>
+              </div>
+              <div class="slot-review" contenteditable="${isEditable}" onblur="updateText(${i}, 'review', this.innerText)">${reviewText}</div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    window.updateText = function(index, key, text) {
+      if (selectedMovies[index]) {
+        if (key === 'rating') {
+            const numMatch = text.match(/[0-9.]+/);
+            selectedMovies[index][key] = numMatch ? numMatch[0] : '5.0';
+        } else {
+            selectedMovies[index][key] = text.trim();
+        }
+      }
+    }
+
+    document.getElementById('nameInput').addEventListener('input', e => document.getElementById('namePreview').innerText = e.target.value);
+    document.getElementById('bioInput').addEventListener('input', e => document.getElementById('bioPreview').innerText = e.target.value);
+
+    // 💡 프로필 이미지 업로드 로직 추가
+    document.getElementById('profileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        alert('이미지 파일만 업로드할 수 있습니다.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const previewEl = document.getElementById('profilePreview');
+        previewEl.style.backgroundImage = `url(${event.target.result})`;
+        // 기본 'Profile' 텍스트를 숨기기 위한 클래스 추가
+        previewEl.classList.add('has-image');
+      };
+      reader.readAsDataURL(file);
+    });
+
+    window.onclick = function(event) {
+      if (event.target == modal) closeModal();
+    }
+
+    window.saveImage = function() {
+      const isComplete = selectedMovies.every(m => m !== null);
+      if(!isComplete) { 
+        alert('극장판 3개를 모두 선택해주세요!'); 
+        return; 
+      }
+      
+      if (document.activeElement) document.activeElement.blur();
+      
+      const captureTarget = document.getElementById('capture-area');
+      html2canvas(captureTarget, {
+        scale: 2,
+        useCORS: true, 
+        backgroundColor: '#ffffff'
+      }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'my-conan-top3.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      }).catch(err => {
+        alert("캡처 중 오류가 발생했습니다. 브라우저 보안 정책 문제일 수 있습니다.");
+      });
+    }
+
+    // 초기 렌더링
+    renderPreview();
+  </script>
+</body>
+</html>
